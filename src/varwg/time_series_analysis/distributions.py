@@ -94,11 +94,17 @@ from varwg.time_series_analysis import _kde as kde
 gamma_func = np.vectorize(lambda x: special.gamma(x), otypes=[float])
 gammaln = np.vectorize(lambda x: special.gammaln(x), otypes=[float])
 gammainc = np.vectorize(lambda a, x: special.gammainc(a, x), otypes=[float])
-gammaincinv = np.vectorize(lambda a, qq: special.gammaincinv(a, qq), otypes=[float])
+gammaincinv = np.vectorize(
+    lambda a, qq: special.gammaincinv(a, qq), otypes=[float]
+)
 digamma = np.vectorize(lambda a: special.digamma(a), otypes=[float])
 hyp1f1 = np.vectorize(lambda a, b, x: special.hyp1f1(a, b, x), otypes=[float])
-nctdtr = np.vectorize(lambda x1, x2, x3: special.nctdtr(x1, x2, x3), otypes=[float])
-nctdtrit = np.vectorize(lambda x1, x2, x3: special.nctdtrit(x1, x2, x3), otypes=[float])
+nctdtr = np.vectorize(
+    lambda x1, x2, x3: special.nctdtr(x1, x2, x3), otypes=[float]
+)
+nctdtrit = np.vectorize(
+    lambda x1, x2, x3: special.nctdtrit(x1, x2, x3), otypes=[float]
+)
 stdtr = np.vectorize(lambda df, x: special.stdtr(df, x), otypes=[float])
 stdtrit = np.vectorize(lambda df, qq: special.stdtrit(df, qq), otypes=[float])
 
@@ -168,7 +174,7 @@ def max_likelihood(
         # method=method,
         # method=("L-BFGS-B" if density_func._bounds else method),
         method=("L-BFGS-B" if bounds else method),
-        options={"maxiter": 1e4 * len(x0), "disp": disp},
+        options={"maxiter": 1e4 * len(x0)},
     )
 
 
@@ -2067,7 +2073,9 @@ class _KDE(object):
             kernel_width = kde.silvermans_rule(kernel_data)
         if np.isnan(kernel_width):
             kernel_data += (
-                upper_eval * 1e-6 * varwg.get_rng().normal(size=len(kernel_data))
+                upper_eval
+                * 1e-6
+                * varwg.get_rng().normal(size=len(kernel_data))
             )
             kernel_width = kde.silvermans_rule(kernel_data)
         dens_kde_eval = kde.kernel_density(
@@ -2362,9 +2370,9 @@ class RainMix(_KDE, _Rain):
         qq = np.zeros_like(x, dtype=float)
         n_non_rain = (~rain_mask).sum()
         if n_non_rain > 0:
-            qq[~rain_mask] = (1 - rain_prob[~rain_mask]) * varwg.get_rng().random(
-                n_non_rain
-            )
+            qq[~rain_mask] = (
+                1 - rain_prob[~rain_mask]
+            ) * varwg.get_rng().random(n_non_rain)
 
         if self.debug:
             fig, ax = plt.subplots(nrows=1, ncols=1)
@@ -2716,9 +2724,9 @@ class Rain(_Rain):
         qq[rain_mask] = p0 + rain_prob[rain_mask] * self.dist.cdf(
             x[rain_mask] - self.thresh, *args, **kwds_rain
         )
-        qq[non_rain_mask] = varwg.get_rng().uniform(size=non_rain_mask.sum()) * (
-            1 - rain_prob[non_rain_mask]
-        )
+        qq[non_rain_mask] = varwg.get_rng().uniform(
+            size=non_rain_mask.sum()
+        ) * (1 - rain_prob[non_rain_mask])
         qq[~finite_mask] = np.nan
         return qq
 
