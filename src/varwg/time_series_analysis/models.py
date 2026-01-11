@@ -29,7 +29,7 @@ from warnings import warn
 import numpy as np
 import scipy
 from scipy import linalg, optimize
-from scipy.linalg import kron
+from numpy import kron
 from scipy.stats import skew
 from tqdm import tqdm
 
