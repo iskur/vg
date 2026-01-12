@@ -32,27 +32,17 @@ jobs:
       with:
         python-version: '3.13'
 
-    - name: Create uv virtualenv
-      run: uv venv
-
-    - name: Install build dependencies
-      run: |
-        source .venv/bin/activate
-        uv pip install --system cython numpy setuptools build
+    - name: Sync dependencies from lockfile
+      run: uv sync --group test
 
     - name: Build package
-      run: |
-        source .venv/bin/activate
-        uv build
+      run: uv build
 
     - name: List built artifacts
       run: ls -lh dist/
 
-    - name: Install package with test dependencies
-      run: |
-        source .venv/bin/activate
-        uv pip install --group test
-        uv pip install dist/*.whl
+    - name: Install built wheel
+      run: uv pip install dist/*.whl
 
     - name: Run tests
       run: |

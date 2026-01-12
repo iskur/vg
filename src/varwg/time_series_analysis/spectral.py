@@ -233,7 +233,7 @@ class SpectralND(Spectral):
         if crange is None:
             root_func = lambda h: cthresh - cov(h)
             maxdist = np.sqrt(
-                np.sum(
+                sum(
                     (dim * dim_scale) ** 2
                     for dim, dim_scale in zip(domainshape, scale)
                 )
