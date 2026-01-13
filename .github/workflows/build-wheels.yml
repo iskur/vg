@@ -33,6 +33,38 @@ jobs:
         # Fallback if quay.io is down
         # CIBW_MANYLINUX_X86_64_IMAGE: docker.io/pypa/manylinux2014_x86_64
 
+    - name: Repack macOS wheels to remove trailing data
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        python3 -m pip install wheel
+        python3 << 'EOF'
+        import subprocess
+        import shutil
+        from pathlib import Path
+
+        wheelhouse = Path('wheelhouse')
+        temp_dir = Path('wheel_temp')
+        temp_dir.mkdir(exist_ok=True)
+
+        for wheel in sorted(wheelhouse.glob('*.whl')):
+            print(f"Repacking {wheel.name}...")
+
+            # Unpack wheel
+            unpack_dir = temp_dir / wheel.stem
+            subprocess.run(['wheel', 'unpack', str(wheel), '-d', str(temp_dir)], check=True)
+
+            # Repack wheel (creates clean ZIP without trailing data)
+            subprocess.run(['wheel', 'pack', str(unpack_dir), '-d', str(wheelhouse)], check=True)
+
+            # Clean up
+            shutil.rmtree(unpack_dir)
+            print(f"  Repacked {wheel.name}")
+
+        shutil.rmtree(temp_dir)
+        print("All macOS wheels repacked successfully")
+        EOF
+
     - name: Set up Python for verification
       uses: actions/setup-python@v5
       with:
