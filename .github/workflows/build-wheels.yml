@@ -33,12 +33,18 @@ jobs:
         # Fallback if quay.io is down
         # CIBW_MANYLINUX_X86_64_IMAGE: docker.io/pypa/manylinux2014_x86_64
 
+    - name: Set up Python for wheel repacking
+      if: runner.os == 'macOS'
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
     - name: Repack macOS wheels to remove trailing data
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        python3 -m pip install wheel
-        python3 << 'EOF'
+        python -m pip install wheel
+        python << 'EOF'
         import subprocess
         import shutil
         from pathlib import Path
