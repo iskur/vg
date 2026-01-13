@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-01-13
+
+### Fixed
+- NumPy 2.4+ compatibility (removed deprecated `np.core.numeric` usage)
+- Import `kron` from `numpy` instead of `scipy.linalg` for better compatibility
+
+### Changed
+- CI dependency locking for reproducible builds
+
+### Documentation
+- Added CLAUDE.md with development guidance and environment setup
+- Regenerated README plots
+
+## [1.4.3] - 2024-11-20
+
+### Fixed
+- Import `kron` from `numpy` instead of `scipy.linalg`
+
+### Documentation
+- Regenerated README plots
+
 ## [1.4.2] - 2025-11-18
 
 ### Added
