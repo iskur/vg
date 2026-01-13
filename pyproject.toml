@@ -29,8 +29,19 @@ dependencies = [
 requires = ["setuptools>=61", "cython", "numpy"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+# Explicitly specify package location
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["varwg*"]
+
 [tool.setuptools.package-data]
 varwg = ["*.met", "test_data/*.nc"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["*.c", "*.h", "*.pyx"]
 
 [dependency-groups]
 dev = [
