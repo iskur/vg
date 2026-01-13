@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - NumPy 2.4+ compatibility (removed deprecated `np.core.numeric` usage)
-- Import `kron` from `numpy` instead of `scipy.linalg` for better compatibility
 
 ### Changed
 - CI dependency locking for reproducible builds
