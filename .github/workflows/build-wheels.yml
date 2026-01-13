@@ -56,14 +56,24 @@ jobs:
         for wheel in sorted(wheelhouse.glob('*.whl')):
             print(f"Repacking {wheel.name}...")
 
-            # Unpack wheel
-            unpack_dir = temp_dir / wheel.stem
+            # Unpack wheel - wheel unpack creates dir named pkgname-version, not full stem
+            before_dirs = set(temp_dir.glob('*'))
             subprocess.run(['wheel', 'unpack', str(wheel), '-d', str(temp_dir)], check=True)
+            after_dirs = set(temp_dir.glob('*'))
+
+            # Find the newly created directory
+            new_dirs = after_dirs - before_dirs
+            if not new_dirs:
+                raise RuntimeError(f"wheel unpack didn't create a directory for {wheel.name}")
+            unpack_dir = new_dirs.pop()
+
+            # Remove original wheel before repacking (wheel pack creates new wheel)
+            wheel.unlink()
 
             # Repack wheel (creates clean ZIP without trailing data)
             subprocess.run(['wheel', 'pack', str(unpack_dir), '-d', str(wheelhouse)], check=True)
 
-            # Clean up
+            # Clean up unpacked directory
             shutil.rmtree(unpack_dir)
             print(f"  Repacked {wheel.name}")
 
