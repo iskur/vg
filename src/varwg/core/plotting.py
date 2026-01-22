@@ -534,6 +534,8 @@ class Plotting(base.Base):
         plot_daily_bounds=True,
         p_kwds=None,
         h_kwds=None,
+        obs_title_str="Measured daily",
+        sim_title_str="Simulated daily",
         **f_kwds,
     ):
         if var_names is None:
@@ -562,7 +564,7 @@ class Plotting(base.Base):
         fig, axs = self._meteogram(
             self.times,
             obs,
-            "Measured daily",
+            obs_title_str,
             var_names,
             fig=figs[0],
             axs=axss[0],
@@ -585,7 +587,7 @@ class Plotting(base.Base):
             fig_, axs_ = self._meteogram(
                 self.sim_times,
                 sim,
-                "Simulated daily",
+                sim_title_str,
                 var_names,
                 fig=figs[1],
                 axs=axss[1],
