@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.6] - 2026-01-23
+
+### Fixed
+- Add missing `pytz` transitive dependency (required by timezonefinder)
+- Exclude Cython-generated .c/.h files from binary wheels to resolve PyPI validation errors
+
 ## [1.4.5] - 2026-01-23
 
 ### Added
