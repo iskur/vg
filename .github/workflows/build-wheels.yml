@@ -25,68 +25,60 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.22.0
+      uses: pypa/cibuildwheel@v3.1.0
       env:
         CIBW_BUILD_VERBOSITY: 1
+        # Use latest delocate (0.13.0) with ZIP fixes
+        CIBW_BEFORE_BUILD_MACOS: "pip install 'delocate>=0.13.0'"
         # Fallback if quay.io is down
         # CIBW_MANYLINUX_X86_64_IMAGE: docker.io/pypa/manylinux2014_x86_64
 
-    - name: Rebuild RECORD files in macOS wheels (fix delocate-wheel CRC issue)
+    - name: Set up Python for wheel repacking
+      if: runner.os == 'macOS'
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Repack macOS wheels to remove trailing data
+      if: runner.os == 'macOS'
       shell: bash
       run: |
-        python3 << 'EOF'
-        import hashlib
-        import zipfile
-        import io
+        python -m pip install wheel
+        python << 'EOF'
+        import subprocess
+        import shutil
         from pathlib import Path
 
-        def rebuild_wheel_record(wheel_path):
-            """Rebuild RECORD file in wheel to fix CRC mismatches from delocate-wheel."""
-            print(f"Processing {wheel_path.name}...")
-
-            # Read all files from the wheel
-            files_data = {}
-            record_path = None
-            with zipfile.ZipFile(wheel_path, 'r') as zf:
-                for info in zf.infolist():
-                    if info.filename.endswith('.dist-info/RECORD'):
-                        record_path = info.filename
-                    if not info.is_dir() and not info.filename.endswith('.dist-info/RECORD'):
-                        files_data[info.filename] = zf.read(info.filename)
-
-            if not record_path:
-                print(f"  No RECORD file found, skipping")
-                return
-
-            # Build new RECORD content
-            record_lines = []
-            for filepath in sorted(files_data.keys()):
-                data = files_data[filepath]
-                hash_digest = hashlib.sha256(data).digest()
-                hash_b64 = __import__('base64').urlsafe_b64encode(hash_digest).decode('ascii').rstrip('=')
-                record_lines.append(f"{filepath},sha256={hash_b64},{len(data)}")
-
-            # RECORD itself has no hash
-            record_lines.append(f"{record_path},,")
-            record_content = '\n'.join(record_lines) + '\n'
-
-            # Recreate wheel with new RECORD
-            with zipfile.ZipFile(wheel_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-                for filepath, data in sorted(files_data.items()):
-                    zf.writestr(filepath, data)
-                zf.writestr(record_path, record_content)
-
-            print(f"  Fixed RECORD file ({len(record_lines)} entries)")
-
-        # Process macOS wheels
         wheelhouse = Path('wheelhouse')
-        processed = 0
-        for wheel in sorted(wheelhouse.glob('*macosx*.whl')):
-            rebuild_wheel_record(wheel)
-            processed += 1
+        temp_dir = Path('wheel_temp')
+        temp_dir.mkdir(exist_ok=True)
 
-        if processed == 0:
-            print("No macOS wheels found to process")
+        for wheel in sorted(wheelhouse.glob('*.whl')):
+            print(f"Repacking {wheel.name}...")
+
+            # Unpack wheel - wheel unpack creates dir named pkgname-version, not full stem
+            before_dirs = set(temp_dir.glob('*'))
+            subprocess.run(['wheel', 'unpack', str(wheel), '-d', str(temp_dir)], check=True)
+            after_dirs = set(temp_dir.glob('*'))
+
+            # Find the newly created directory
+            new_dirs = after_dirs - before_dirs
+            if not new_dirs:
+                raise RuntimeError(f"wheel unpack didn't create a directory for {wheel.name}")
+            unpack_dir = new_dirs.pop()
+
+            # Remove original wheel before repacking (wheel pack creates new wheel)
+            wheel.unlink()
+
+            # Repack wheel (creates clean ZIP without trailing data)
+            subprocess.run(['wheel', 'pack', str(unpack_dir), '-d', str(wheelhouse)], check=True)
+
+            # Clean up unpacked directory
+            shutil.rmtree(unpack_dir)
+            print(f"  Repacked {wheel.name}")
+
+        shutil.rmtree(temp_dir)
+        print("All macOS wheels repacked successfully")
         EOF
 
     - name: Set up Python for verification

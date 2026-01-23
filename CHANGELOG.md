@@ -15,10 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.4] - 2026-01-13
 
 ### Fixed
-- NumPy 2.4+ compatibility (removed deprecated `np.core.numeric` usage)
+- NumPy 2.4+ compatibility: Replaced deprecated `np.sum(generator)` with builtin `sum()` in spectral.py
 
 ### Changed
-- CI dependency locking for reproducible builds
+- CI now uses `uv sync` to respect dependency lockfile for reproducible builds
+- Updated uv.lock to match pyproject.toml version
 
 ### Documentation
 - Added CLAUDE.md with development guidance and environment setup
