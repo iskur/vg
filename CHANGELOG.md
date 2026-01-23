@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-01-23
+
+### Added
+- `obs_title_str` and `sim_title_str` parameters to `plot_meteogram_daily()` for customizable plot titles
+
 ## [1.4.4] - 2026-01-13
 
 ### Fixed
