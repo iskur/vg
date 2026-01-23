@@ -43,42 +43,73 @@ jobs:
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        python -m pip install wheel
+        python -m pip install wheel zipfile-deflate64
         python << 'EOF'
-        import subprocess
+        import zipfile
+        import hashlib
+        import base64
         import shutil
+        import tempfile
         from pathlib import Path
 
+        def sha256_digest(data):
+            """Calculate SHA256 digest in base64 urlsafe format."""
+            digest = hashlib.sha256(data).digest()
+            return base64.urlsafe_b64encode(digest).rstrip(b'=').decode('ascii')
+
+        def rebuild_wheel_clean(wheel_path):
+            """Rebuild wheel with clean ZIP structure and updated RECORD."""
+            print(f"Rebuilding {wheel_path.name}...")
+
+            temp_wheel = wheel_path.with_suffix('.tmp')
+            record_lines = []
+            dist_info_dir = None
+
+            # Read original wheel and rebuild cleanly
+            with zipfile.ZipFile(wheel_path, 'r') as old_zip:
+                # Create new ZIP with explicit settings for clean structure
+                with zipfile.ZipFile(temp_wheel, 'w', zipfile.ZIP_DEFLATED) as new_zip:
+                    for item in old_zip.infolist():
+                        # Skip the old RECORD file - we'll regenerate it
+                        if item.filename.endswith('/RECORD'):
+                            dist_info_dir = str(Path(item.filename).parent)
+                            continue
+
+                        # Read file data
+                        data = old_zip.read(item.filename)
+
+                        # Write with fresh metadata (no trailing data)
+                        new_zip.writestr(item.filename, data, compress_type=zipfile.ZIP_DEFLATED)
+
+                        # Calculate hash for RECORD
+                        file_hash = sha256_digest(data)
+                        file_size = len(data)
+                        record_lines.append(f"{item.filename},sha256={file_hash},{file_size}")
+
+                    # Write new RECORD file
+                    if dist_info_dir:
+                        record_path = f"{dist_info_dir}/RECORD"
+                        # RECORD itself has empty hash and size
+                        record_lines.append(f"{record_path},,")
+                        record_content = '\n'.join(record_lines) + '\n'
+                        new_zip.writestr(record_path, record_content, compress_type=zipfile.ZIP_DEFLATED)
+
+            # Verify the new wheel is valid
+            with zipfile.ZipFile(temp_wheel, 'r') as verify_zip:
+                bad_file = verify_zip.testzip()
+                if bad_file:
+                    raise RuntimeError(f"Rebuilt wheel has bad file: {bad_file}")
+
+            # Replace original with clean version
+            wheel_path.unlink()
+            temp_wheel.rename(wheel_path)
+            print(f"  ✓ Rebuilt {wheel_path.name} with clean ZIP structure")
+
         wheelhouse = Path('wheelhouse')
-        temp_dir = Path('wheel_temp')
-        temp_dir.mkdir(exist_ok=True)
-
         for wheel in sorted(wheelhouse.glob('*.whl')):
-            print(f"Repacking {wheel.name}...")
+            rebuild_wheel_clean(wheel)
 
-            # Unpack wheel - wheel unpack creates dir named pkgname-version, not full stem
-            before_dirs = set(temp_dir.glob('*'))
-            subprocess.run(['wheel', 'unpack', str(wheel), '-d', str(temp_dir)], check=True)
-            after_dirs = set(temp_dir.glob('*'))
-
-            # Find the newly created directory
-            new_dirs = after_dirs - before_dirs
-            if not new_dirs:
-                raise RuntimeError(f"wheel unpack didn't create a directory for {wheel.name}")
-            unpack_dir = new_dirs.pop()
-
-            # Remove original wheel before repacking (wheel pack creates new wheel)
-            wheel.unlink()
-
-            # Repack wheel (creates clean ZIP without trailing data)
-            subprocess.run(['wheel', 'pack', str(unpack_dir), '-d', str(wheelhouse)], check=True)
-
-            # Clean up unpacked directory
-            shutil.rmtree(unpack_dir)
-            print(f"  Repacked {wheel.name}")
-
-        shutil.rmtree(temp_dir)
-        print("All macOS wheels repacked successfully")
+        print("\nAll macOS wheels rebuilt successfully with clean ZIP structure")
         EOF
 
     - name: Set up Python for verification
