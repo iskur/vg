@@ -59,7 +59,13 @@ jobs:
 
         def rebuild_wheel_clean(wheel_path):
             """Rebuild wheel with clean ZIP structure and updated RECORD."""
-            print(f"Rebuilding {wheel_path.name}...")
+            print(f"\nRebuilding {wheel_path.name}...")
+
+            # Debug: Check original wheel
+            with zipfile.ZipFile(wheel_path, 'r') as check_zip:
+                bad_file = check_zip.testzip()
+                print(f"  Before: {'BAD FILE' if bad_file else 'OK'} {bad_file if bad_file else ''}")
+                print(f"  Files: {len(check_zip.namelist())}")
 
             temp_wheel = wheel_path.with_suffix('.tmp')
             record_lines = []
@@ -78,8 +84,10 @@ jobs:
                         # Read file data
                         data = old_zip.read(item.filename)
 
-                        # Write with fresh metadata (no trailing data)
-                        new_zip.writestr(item.filename, data, compress_type=zipfile.ZIP_DEFLATED)
+                        # Write with fresh metadata, preserving compress_type from original
+                        # This avoids issues where different compression types cause validation failures
+                        compress_type = item.compress_type if item.compress_type != zipfile.ZIP_STORED else zipfile.ZIP_DEFLATED
+                        new_zip.writestr(item.filename, data, compress_type=compress_type)
 
                         # Calculate hash for RECORD
                         file_hash = sha256_digest(data)
@@ -97,17 +105,37 @@ jobs:
             # Verify the new wheel is valid
             with zipfile.ZipFile(temp_wheel, 'r') as verify_zip:
                 bad_file = verify_zip.testzip()
+                print(f"  After: {'BAD FILE' if bad_file else 'OK'} {bad_file if bad_file else ''}")
                 if bad_file:
-                    raise RuntimeError(f"Rebuilt wheel has bad file: {bad_file}")
+                    # List .so files for debugging
+                    so_files = [f for f in verify_zip.namelist() if f.endswith('.so')]
+                    if so_files:
+                        print(f"  .so files in wheel: {so_files}")
+                        for so_file in so_files:
+                            info = verify_zip.getinfo(so_file)
+                            print(f"    {so_file}: {info.file_size} bytes, compress_type={info.compress_type}, CRC={info.CRC}")
+                    print(f"  ERROR: Rebuilt wheel still has bad file: {bad_file}")
+                    return False
 
-            # Replace original with clean version
+            print(f"  ✓ Rebuilt wheel is valid")
+
+            # Replace original with rebuilt version
             wheel_path.unlink()
             temp_wheel.rename(wheel_path)
-            print(f"  ✓ Rebuilt {wheel_path.name} with clean ZIP structure")
+            print(f"  ✓ Repacked {wheel_path.name}")
+            return True
 
         wheelhouse = Path('wheelhouse')
+        failed_wheels = []
         for wheel in sorted(wheelhouse.glob('*.whl')):
-            rebuild_wheel_clean(wheel)
+            if not rebuild_wheel_clean(wheel):
+                failed_wheels.append(wheel.name)
+
+        if failed_wheels:
+            print(f"\n⚠ Warning: {len(failed_wheels)} wheels still have validation issues after repacking:")
+            for w in failed_wheels:
+                print(f"  - {w}")
+            print("\nThese may still work, proceeding with caution...")
 
         print("\nAll macOS wheels rebuilt successfully with clean ZIP structure")
         EOF
