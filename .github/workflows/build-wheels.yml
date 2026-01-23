@@ -43,7 +43,7 @@ jobs:
       if: runner.os == 'macOS'
       shell: bash
       run: |
-        python -m pip install wheel zipfile-deflate64
+        python -m pip install wheel
         python << 'EOF'
         import zipfile
         import hashlib
